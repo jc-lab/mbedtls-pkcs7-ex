@@ -22,5 +22,6 @@ int mbedtls_pkcs7_parse_verify_attached(
     const unsigned char *pkcs7_der, size_t pkcs7_len,
     mbedtls_pkcs7_view *out_view /* out */ );
 
+void mbedtls_pkcs7_view_free( mbedtls_pkcs7_view *view );
 #endif /* MBEDTLS_PKCS7_VIEW_H */
 

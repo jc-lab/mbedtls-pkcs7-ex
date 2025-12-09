@@ -723,14 +723,20 @@ int mbedtls_pkcs7_parse_verify_attached(
     mbedtls_pkcs7_buf ectype = {0};
     const unsigned char *econtent = NULL;
     size_t econtent_len = 0;
-    mbedtls_x509_crt certs; mbedtls_x509_crt_init(&certs);
+    mbedtls_x509_crt certs;
     signer_info_view siv = {0};
     mbedtls_md_type_t md_alg = MBEDTLS_MD_NONE;
 
+    mbedtls_x509_crt_init(&certs);
+    
     ret = parse_signed_data(sd, (size_t)(sd_end - sd),
                             &ectype, &econtent, &econtent_len,
                             &certs, &siv, &md_alg);
-    if (ret != 0) { mbedtls_x509_crt_free(&certs); return ret; }
+    if (ret != 0) {
+        mbedtls_x509_crt_free(&certs);
+        mbedtls_pkcs7_view_free(out_view);
+        return ret;
+    }
 
     /* eContentType == data 인지 등은 요구사항상 제한 없음: 그대로 노출 */
     out_view->econtent_type = ectype;
@@ -739,15 +745,27 @@ int mbedtls_pkcs7_parse_verify_attached(
 
     /* SID로 signer cert 매칭 */
     mbedtls_x509_crt *signer = find_signer_cert_by_sid(&certs, &siv);
-    if (!signer) { mbedtls_x509_crt_free(&certs); return MBEDTLS_ERR_PKCS7_INVALID_CERT; }
+    if (!signer) {
+        mbedtls_x509_crt_free(&certs);
+        mbedtls_pkcs7_view_free(out_view);
+        return MBEDTLS_ERR_PKCS7_INVALID_CERT;
+    }
 
     /* eContent 해시 계산 */
     const mbedtls_md_info_t *md_info = mbedtls_md_info_from_type(md_alg);
-    if (!md_info) { mbedtls_x509_crt_free(&certs); return MBEDTLS_ERR_PKCS7_INVALID_ALG; }
+    if (!md_info) {
+        mbedtls_x509_crt_free(&certs);
+        mbedtls_pkcs7_view_free(out_view);
+        return MBEDTLS_ERR_PKCS7_INVALID_ALG;
+    }
 
     unsigned char data_hash[MBEDTLS_MD_MAX_SIZE];
     ret = mbedtls_md(md_info, econtent ? econtent : (const unsigned char *)"", econtent_len, data_hash);
-    if (ret != 0) { mbedtls_x509_crt_free(&certs); return MBEDTLS_ERR_PKCS7_VERIFY_FAIL; }
+    if (ret != 0) {
+        mbedtls_x509_crt_free(&certs);
+        mbedtls_pkcs7_view_free(out_view);
+        return MBEDTLS_ERR_PKCS7_VERIFY_FAIL;
+    }
 
     /* signedAttrs 존재하면 messageDigest와 비교 */
     if (siv.signed_attrs_der && siv.msg_digest) {
@@ -755,6 +773,7 @@ int mbedtls_pkcs7_parse_verify_attached(
         if (siv.msg_digest_len != hlen ||
             memcmp(siv.msg_digest, data_hash, hlen) != 0) {
             mbedtls_x509_crt_free(&certs);
+            mbedtls_pkcs7_view_free(out_view);
             return MBEDTLS_ERR_PKCS7_VERIFY_FAIL; /* 콘텐츠 해시 불일치 */
         }
         /* 서명은 signedAttrs DER 위에 계산됨 */
@@ -767,12 +786,20 @@ int mbedtls_pkcs7_parse_verify_attached(
         ret = verify_signature(&siv, signer, md_alg, data_hash, hlen, /*is_attrs=*/0);
     }
     
-    if (ret != 0) { mbedtls_x509_crt_free(&certs); return MBEDTLS_ERR_PKCS7_VERIFY_FAIL; }
+    if (ret != 0) {
+        mbedtls_x509_crt_free(&certs);
+        mbedtls_pkcs7_view_free(out_view);
+        return MBEDTLS_ERR_PKCS7_VERIFY_FAIL;
+    }
 
     /* out_view->signer_cert 에 매칭 인증서를 복제(소유권 분리) */
     {
         int rc = mbedtls_x509_crt_parse_der(&out_view->signer_cert, signer->raw.p, signer->raw.len);
-        if (rc != 0) { mbedtls_x509_crt_free(&certs); return MBEDTLS_ERR_PKCS7_INVALID_CERT; }
+        if (rc != 0) {
+            mbedtls_x509_crt_free(&certs);
+            mbedtls_pkcs7_view_free(out_view);
+            return MBEDTLS_ERR_PKCS7_INVALID_CERT;
+        }
     }
 
     out_view->signing_time_valid = 0;
@@ -789,4 +816,13 @@ int mbedtls_pkcs7_parse_verify_attached(
 
     mbedtls_x509_crt_free(&certs);
     return 0;
+}
+
+void mbedtls_pkcs7_view_free( mbedtls_pkcs7_view *view )
+{
+    if (view == NULL)
+        return;
+
+    mbedtls_x509_crt_free( &view->signer_cert );
+    memset(view, 0, sizeof(mbedtls_pkcs7_view));
 }
