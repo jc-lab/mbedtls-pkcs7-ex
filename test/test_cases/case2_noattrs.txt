@@ -1,0 +1,5 @@
+# Test Case 2 (ECDSA)
+description: Attached content (ECDSA, no signedAttrs)
+expect_verify: OK
+expect_length: 30
+payload_sha256: 40ea23e7737e13d6e90c63448eb38730c8e02b9b6c349c1b7ec1d801a7df8770

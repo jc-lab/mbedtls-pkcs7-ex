@@ -1,0 +1,22 @@
+name: C/C++ CI
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: 'recursive'
+
+    - name: Configure CMake
+      run: cmake -S . -B build -DMBEDTLS_PKCS7_EX_ENABLE_TESTING=ON
+
+    - name: Build
+      run: cmake --build build
+
+    - name: Test
+      working-directory: ./build
+      run: ctest -C Debug --verbose
