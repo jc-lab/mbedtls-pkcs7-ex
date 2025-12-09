@@ -775,14 +775,18 @@ int mbedtls_pkcs7_parse_verify_attached(
         if (rc != 0) { mbedtls_x509_crt_free(&certs); return MBEDTLS_ERR_PKCS7_INVALID_CERT; }
     }
 
+    out_view->signing_time_valid = 0;
     if (siv.has_signing_time) {
+        memcpy(&out_view->signing_time, &siv.signing_time, sizeof(siv.signing_time));
         if (x509_time_cmp(&signer->valid_from, &siv.signing_time) > 0 ||
             x509_time_cmp(&siv.signing_time, &signer->valid_to) > 0) {
             /* signingTime이 인증서 유효기간 밖이면 실패 */
-            mbedtls_x509_crt_free(&certs);
-            return MBEDTLS_ERR_PKCS7_CERT_DATE_INVALID;
+            out_view->signing_time_valid = -1;
+        } else {
+            out_view->signing_time_valid = 1;
         }
     }
+
     mbedtls_x509_crt_free(&certs);
     return 0;
 }
