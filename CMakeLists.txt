@@ -3,7 +3,7 @@ project(mbedtls_pkcs7_ex)
 
 set(MBEDTLS_PKCS7_EX_ENABLE_TESTING ON CACHE BOOL "Enable testing")
 
-add_library(mbedtls_pkcs7_ex pkcs7_ex.c)
+add_library(mbedtls_pkcs7_ex STATIC pkcs7_ex.c pkcs7_ex.h)
 target_include_directories(mbedtls_pkcs7_ex PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
 if(NOT MbedTLS_FOUND)

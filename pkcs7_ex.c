@@ -7,20 +7,19 @@
  */
 
 #include <string.h>
+#include <stdlib.h>
 #include <stdio.h>
-
-#include <mbedtls/error.h>
 
 #include "pkcs7_ex.h"
 
-static void dump_hex(void* p, int len) {
-    int i;
-    unsigned char* p2 = (unsigned char*)p;
-    for (i = 0; i < len; i++) {
-        fprintf(stderr, "%02x ", p2[i]);
-    }
-    fprintf(stderr, "\n");
-}
+#include <mbedtls/error.h>
+#include <mbedtls/oid.h>
+#include <mbedtls/md.h>
+#include <mbedtls/x509.h>
+#include <mbedtls/x509_crt.h>
+
+extern int mbedtls_x509_get_serial(unsigned char **p, const unsigned char *end, mbedtls_x509_buf *serial);
+extern int mbedtls_x509_oid_get_md_alg(const mbedtls_x509_buf* md_alg, mbedtls_md_type_t* md_type);
 
 /* messageDigest(1.2.840.113549.1.9.4) 의 DER value 바이트 */
 static const unsigned char OID_PKCS9_MESSAGE_DIGEST[] = {
